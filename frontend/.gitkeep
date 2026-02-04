@@ -1,0 +1,129 @@
+multi-translator/
+├─ frontend/
+│  ├─ src/
+│  │   ├─ components/
+│  │   │   ├─ TextInput.jsx
+│  │   │   ├─ FileUpload.jsx
+│  │   │   ├─ LanguageSelector.jsx
+│  │   │   ├─ TranslateButton.jsx
+│  │   │   └─ TranslationOutput.jsx
+│  │   ├─ App.jsx
+│  │   └─ index.jsx
+│  ├─ package.json
+│  └─ tailwind.config.js
+├─ backend/
+│  ├─ index.js
+│  ├─ routes/
+│  │   └─ translate.js
+│  ├─ utils/
+│  │   ├─ translationAPI.js
+│  │   └─ pdfHandler.js
+│  └─ package.json
+└─ README.md
+export default function FileUpload({ onFileSelect }) {
+  return (
+    <div className="mb-4">
+      <label className="block mb-1">Upload PDF:</label>
+      <input
+        type="file"
+        accept="application/pdf"
+        onChange={(e) => onFileSelect(e.target.files[0])}
+        className="border p-2 rounded w-full"
+      />
+    </div>
+  );
+}
+import React, { useState } from 'react';
+import TextInput from './components/TextInput';
+import FileUpload from './components/FileUpload';
+import LanguageSelector from './components/LanguageSelector';
+import TranslateButton from './components/TranslateButton';
+import TranslationOutput from './components/TranslationOutput';
+
+export default function App() {
+  const [text, setText] = useState('');
+  const [file, setFile] = useState(null);
+  const [sourceLang, setSourceLang] = useState('en');
+  const [targetLang, setTargetLang] = useState('ar');
+  const [translation, setTranslation] = useState('');
+
+  const handleTranslate = async () => {
+    const formData = new FormData();
+    formData.append('text', text);
+    formData.append('source_language', sourceLang);
+    formData.append('target_language', targetLang);
+    if (file) formData.append('file', file);
+
+    const res = await fetch('https://YOUR_BACKEND_URL/translate', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    setTranslation(data.translated_text);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto mt-20 p-6 bg-white shadow rounded">
+      <TextInput value={text} onChange={setText} />
+      <FileUpload onFileSelect={setFile} />
+      <div className="flex space-x-4 my-4">
+        <LanguageSelector value={sourceLang} onChange={setSourceLang} label="From" />
+        <LanguageSelector value={targetLang} onChange={setTargetLang} label="To" />
+      </div>
+      <TranslateButton onClick={handleTranslate} />
+      <TranslationOutput text={translation} />
+    </div>
+  );
+}
+          const languages = [
+  { code: 'en', name: 'English' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'zh', name: 'Chinese' },
+];
+
+export default function LanguageSelector({ value, onChange, label }) {
+  return (
+    <div className="flex flex-col">
+      <label>{label}</label>
+      <select
+        className="border rounded p-1"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {languages.map((lang) => (
+          <option key={lang.code} value={lang.code}>{lang.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+          import express from 'express';
+import cors from 'cors';
+import translateRoute from './routes/translate.js';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.use('/translate', translateRoute);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+          import pdf from 'pdf-parse';
+
+export async function extractTextFromPDF(buffer) {
+  const data = await pdf(buffer);
+  return data.text;
+}
+          import OpenAI from 'openai';
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export async function translateText(text, source, target) {
+  const prompt = `Translate the following text from ${source} to ${target} with perfect accuracy, keeping meaning and context intact:\n\n${text}`;
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return response.choices[0].message.content.trim();
+}
